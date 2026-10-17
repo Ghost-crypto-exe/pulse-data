@@ -1,0 +1,25 @@
+name: Mirror ForexFactory calendar
+on:
+  schedule:
+    - cron: '17 * * * *'   # hourly (minute 17 to avoid the top-of-hour rush)
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency: { group: mirror, cancel-in-progress: false }
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: node scripts/fetch-ff.mjs
+      - name: Commit if changed
+        run: |
+          git config user.name 'pulse-data-bot'
+          git config user.email 'pulse-data-bot@users.noreply.github.com'
+          git add data
+          if git diff --cached --quiet; then echo 'no change'; exit 0; fi
+          git commit -m "Mirror FF calendar $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push
